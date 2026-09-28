@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: API de Tareas - Plataforma Universitaria
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api/v1
+security:
+  - bearerAuth: []
+paths:
+  /tareas:
+    get:
+      summary: Consultar todas las tareas (opcionalmente filtradas por estado)
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Estado"
+      responses:
+        "200":
+          description: Lista de tareas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaTareas"
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "500": { $ref: "#/components/responses/Error500" }
+  /tareas/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, example: t-1024 }
+    get:
+      summary: Consultar una tarea específica
+      responses:
+        "200":
+          description: Tarea encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tarea"
+        "401": { $ref: "#/components/responses/Error401" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "500": { $ref: "#/components/responses/Error500" }
+    patch:
+      summary: Marcar una tarea como completada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado:
+                  $ref: "#/components/schemas/Estado"
+            example: { estado: completado }
+      responses:
+        "200":
+          description: Tarea actualizada (idempotente)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tarea"
+        "400": { $ref: "#/components/responses/Error400" }
+        "401": { $ref: "#/components/responses/Error401" }
+        "404": { $ref: "#/components/responses/Error404" }
+        "422":
+          description: Solo se permite pasar a completado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { codigo: TRANSICION_NO_PERMITIDA, mensaje: Solo se permite marcar la tarea como completado }
+        "500": { $ref: "#/components/responses/Error500" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Estado:
+      type: string
+      enum: [pendiente, completado]
+    Tarea:
+      type: object
+      required: [id, titulo, curso, fechaEntrega, estado]
+      properties:
+        id: { type: string, example: t-1024 }
+        titulo: { type: string, example: Informe de laboratorio 3 }
+        curso: { type: string, example: Física II }
+        fechaEntrega: { type: string, format: date-time, example: "2026-10-05T23:59:00Z" }
+        estado: { $ref: "#/components/schemas/Estado" }
+    ListaTareas:
+      type: object
+      properties:
+        total: { type: integer, example: 2 }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Tarea" }
+    Error:
+      type: object
+      required: [codigo, mensaje]
+      properties:
+        codigo: { type: string }
+        mensaje: { type: string }
+  responses:
+    Error400:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { codigo: ESTADO_INVALIDO, mensaje: "El estado debe ser: pendiente | completado" }
+    Error401:
+      description: No autenticado
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { codigo: NO_AUTENTICADO, mensaje: Falta token o es inválido }
+    Error404:
+      description: Tarea no encontrada
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { codigo: TAREA_NO_ENCONTRADA, mensaje: No existe una tarea con id t-9999 }
+    Error500:
+      description: Error interno
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { codigo: ERROR_INTERNO, mensaje: Error inesperado del servidor }
